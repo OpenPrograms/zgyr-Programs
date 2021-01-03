@@ -3,12 +3,17 @@
 A program for compressing and flashing files to EEPROM.
 
 
+## Requirements
+
+* Data Card any tier
+
+* Internet Card required for installation
+
+
 ## Download
 
 ```
-wget https://raw.githubusercontent.com/OpenPrograms/zgyr-Programs/master/installer.lua
-
-installer && rm installer.lua
+oppm install bpacker
 ```
 
 
@@ -23,6 +28,8 @@ Options:
   
   -m           minify code before compressing (unsafe)
   
+  -l, --lzss   use lzss algorithm for compression (no data card required)
+  
   -h, --help   display this help and exit
 ```
 
@@ -30,5 +37,5 @@ Options:
 ## TODO
 
 - [ ] Make a more cleverly packer
-- [ ] Add lz4 or lzss algorithm
+- [x] Add lz4 or lzss algorithm
 - [ ] Improve the minifier

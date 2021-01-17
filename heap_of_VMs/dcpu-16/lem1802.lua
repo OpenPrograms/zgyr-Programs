@@ -52,3 +52,116 @@ LEM1802 = {
   refreshCount = 0,
   buffer = {}
 }
+
+LEM1802.init = function()
+  gpu.setResolution(64, 24)
+  for i = 1, #LEM1802.defaultFont do
+    MEM[i + LEM1802.fontOffset] = LEM1802.defaultFont[i]
+  end
+  LEM1802.palette = LEM1802.defaultPalette
+  for i = 0, 15 do
+    --gpu.setPaletteColor(i, LEM1802.palette[i + 1])
+  end
+end
+
+local function font2pix(c)
+  if not LEM1802.buffer[c] then
+    LEM1802.buffer[c] = {
+      ((c >> 8) & 7) | ((c >> 5) & 64) | ((c & 7) << 3) | ((c & 8) << 4) | 0x2800,
+      ((c >> 12) & 7) | ((c >> 9) & 64) | ((c >> 1) & 56) | (c & 128) | 0x2800
+    }
+  end
+  return LEM1802.buffer[c]    
+end
+
+local actions = {
+  [0] = function(B) -- MEM_MAP_SCREEN
+    if B == 0 then
+      gpu.setBackground(0)
+      gpu.fill(1, 1, W, H, ' ')
+    else
+      LEM1802.memOffset = B
+    end
+  end,
+  
+  function(B) -- MEM_MAP_FONT
+    if B == 0 then
+      LEM1802.fontOffset = 0x8180
+      for i = 0, #LEM1802.defaultFont - 1 do
+        MEM[i + LEM1802.fontOffset] = LEM1802.defaultFont[i]
+      end
+    else
+      LEM1802.fontOffset = B
+    end
+  end,
+  
+  function(B) -- MEM_MAP_PALETTE
+    if B == 0 then
+      LEM1802.palette = LEM1802.defaultPalette
+    else
+      for i = 0, 15 do
+        LEM1802.palette[i] = RAM[B + i]
+      end
+    end
+    for i = 0, 15 do
+      gpu.setPaletteColor(i, LEM1802.palette[i])
+    end
+  end,
+  
+  function(B) -- SET_BORDER_COLOR
+    LEM1802.borderColor = B & 0xF
+  end,
+  
+  function(B) -- MEM_DUMP_FONT
+    for i = 0, #LEM1802.defaultFont - 1 do
+      MEM[i + B] = LEM1802.defaultFont[i]
+    end
+    -- DCPU-16.cycles = DCPU-16.cycles + 256
+  end,
+  
+  function(B) -- MEM_DUMP_PALETTE
+    for i = 0, 15 do
+      MEM[i + B] = LEM1802.defaultPalette[i]
+    end
+    -- DCPU-16.cycles = DCPU-16.cycles + 16
+  end,
+}
+
+LEM1802.interrupt = function()
+  local A, B = REG.A, REG.B
+  actions[A](B)
+end
+
+MEM = {}
+for i = 0, 0xffff do
+  MEM[i] = 0
+end
+LEM1802.init()
+
+for i = 1, 128 do
+  MEM[LEM1802.memOffset + i] = i
+end
+
+local function draw()
+  local x, y = 1, 1
+  for i = 1, 386 do
+    local chr = MEM[i + LEM1802.memOffset]
+    --gpu.setBackground(chr >> 8 & 15, true)
+    --gpu.setForeground(chr >> 12, true)
+    chr = chr & 127
+    --chr = i
+    local address = chr + LEM1802.fontOffset
+    local a, b = MEM[address], MEM[address + 1]
+    local c = font2pix(a)
+    gpu.set(x, y, char(c[1]))
+    gpu.set(x, y + 1, char(c[2]))
+    c = font2pix(b)
+    gpu.set(x + 1, y, char(c[1]))
+    gpu.set(x + 1, y + 1, char(c[2]))
+    x = x + 2
+    if x > 63 then
+      x = 1
+      y = y + 2
+    end
+  end
+end

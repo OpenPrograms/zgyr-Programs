@@ -1,4 +1,3 @@
- 
 --[[
 fedc ba98 7654 3210
 1XXX XXXX XXXX XXXX literal
@@ -30,6 +29,62 @@ local CPU = {
   PC = 0, -- program counter
   T = 0, -- d_stack pointer
   R = 0, -- r_stack pointer
+}
+
+local OP = {
+  [0] = function() -- T
+    return CPU.D_STACK[CPU.T]
+  end,
+  function() -- N
+    return CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]
+  end,
+  function() -- T + N
+    return uint16(CPU.D_STACK[CPU.T] +
+            CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE])
+  end,
+  function() -- T and N
+    return CPU.D_STACK[CPU.T] & CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]
+  end,
+  function() -- T or N
+    return CPU.D_STACK[CPU.T] | CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]
+  end,
+  function() -- T xor N
+    return CPU.D_STACK[CPU.T] ~ CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]
+  end,
+  function() -- ~ T
+    return ~CPU.D_STACK[CPU.T]
+  end,
+  function() -- N = T
+    return CONST[CPU.D_STACK[CPU.T] ==
+                 CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]]
+  end,
+  function() -- T > N
+    return CONST[CPU.D_STACK[CPU.T] >
+                 CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]]
+  end,
+  function() -- N rshift T
+    return CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE] >> CPU.D_STACK[CPU.T]
+  end,
+  function() -- T - 1
+    return uint16(CPU.D_STACK[CPU.T] - 1)
+  end,
+  function() -- R
+    return CPU.R_STACK[CPU.R]
+  end,
+  function() -- [T]
+    return CPU.MEMORY[CPU.D_STACK[CPU.T]]
+  end,
+  function() -- N lshift T
+    return uint16(CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE <<
+                  CPU.D_STACK[CPU.T]])
+  end,
+  function() -- depth
+    return CPU.T
+  end,
+  function() -- uN < T
+    return CONST[CPU.D_STACK[CPU.T] >
+                 uint16(CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE])]
+  end,
 }
 
 local function ALU(IR)

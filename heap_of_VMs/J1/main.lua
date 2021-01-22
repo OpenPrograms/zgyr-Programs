@@ -31,67 +31,38 @@ local CPU = {
   R = 0, -- r_stack pointer
 }
 
+local function TD() -- top of d_stack
+  return CPU.D_STACK[CPU.T]
+end
+
+local function ND() -- next value on d_stack
+  return CPU.D_STACK[CPU.T - 1 % CONST.STACK_SIZE]
+end
+
 local OP = {
-  [0] = function() -- T
-    return CPU.D_STACK[CPU.T]
-  end,
-  function() -- N
-    return CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]
-  end,
-  function() -- T + N
-    return uint16(CPU.D_STACK[CPU.T] +
-            CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE])
-  end,
-  function() -- T and N
-    return CPU.D_STACK[CPU.T] & CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]
-  end,
-  function() -- T or N
-    return CPU.D_STACK[CPU.T] | CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]
-  end,
-  function() -- T xor N
-    return CPU.D_STACK[CPU.T] ~ CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]
-  end,
-  function() -- ~ T
-    return ~CPU.D_STACK[CPU.T]
-  end,
-  function() -- N = T
-    return CONST[CPU.D_STACK[CPU.T] ==
-                 CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]]
-  end,
-  function() -- T > N
-    return CONST[CPU.D_STACK[CPU.T] >
-                 CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE]]
-  end,
-  function() -- N rshift T
-    return CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE] >> CPU.D_STACK[CPU.T]
-  end,
-  function() -- T - 1
-    return uint16(CPU.D_STACK[CPU.T] - 1)
-  end,
-  function() -- R
-    return CPU.R_STACK[CPU.R]
-  end,
-  function() -- [T]
-    return CPU.MEMORY[CPU.D_STACK[CPU.T]]
-  end,
-  function() -- N lshift T
-    return uint16(CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE <<
-                  CPU.D_STACK[CPU.T]])
-  end,
-  function() -- depth
-    return CPU.T
-  end,
-  function() -- uN < T
-    return CONST[CPU.D_STACK[CPU.T] >
-                 uint16(CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE])]
-  end,
+  [0] = function() return TD() end,                 -- T
+  function() return ND() end,                       -- N
+  function() return uint16(TD() + ND()) end,        -- T + N
+  function() return TD() & ND() end,                -- T and N
+  function() return TD() | ND() end,                -- T or N
+  function() return TD() ~ ND() end,                -- T xor N
+  function() return ~TD() end,                      -- ~ T
+  function() return CONST[TD() == ND()] end,        -- N == T
+  function() return CONST[TD() > ND()] end,         -- T > N
+  function() return ND() >> TD() end,               -- N rshift T
+  function() return uint16(TD() - 1) end,           -- T - 1
+  function() return CPU.R_STACK[CPU.R] end,         -- R
+  function() return CPU.MEMORY[TD()] end,           -- [T]
+  function() return uint16(ND() << TD()) end,       -- N lshift T
+  function() return CPU.T end,                      -- depth
+  function() return CONST[TD() > uint16(ND())] end, -- uN < T
 }
 
 local function ALU(IR)
   if IR & 0x3 then -- DS +-
-    CPU.D_STACK[CPU.T] = CPU.D_STACK[CPU.T] + 1 % CONST.STACK_SIZE
+    CPU.D_STACK[CPU.T] = TD() + 1 % CONST.STACK_SIZE
   elseif RS == 2 then
-    CPU.D_STACK[CPU.T] = CPU.D_STACK[CPU.T] - 1 % CONST.STACK_SIZE
+    CPU.D_STACK[CPU.T] = TD() - 1 % CONST.STACK_SIZE
   end
   local RS = (IR & 0xC) >> 2
   if RS == 1 then -- RS +-
@@ -107,13 +78,13 @@ local function ALU(IR)
     CPU.PC = CPU.R_STACK[CPU.R]
   end
   if IR & 0x40 == 1 then -- T -> N
-    CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE] = CPU.D_STACK[CPU.T]
+    CPU.D_STACK[CPU.T + 1 % CONST.STACK_SIZE] = TD()
   end
   if IR & 0x20 == 1 then -- T -> R
-    CPU.R_STACK[CPU.R] = CPU.D_STACK[CPU.T]
+    CPU.R_STACK[CPU.R] = TD()
   end
   if IR & 0x10 == 1 then -- N -> [T]
-    CPU.MEMORY[CPU.D_STACK[CPU.T]] = CPU.D_STACK[CPU.T - 1 % CONST.STACK_SIZE]
+    CPU.MEMORY[TD()] = CPU.D_STACK[CPU.T - 1 % CONST.STACK_SIZE]
   end
   CPU.D_STACK[CPU.T] = result
 end
@@ -128,7 +99,7 @@ local function decoder(IR)
     if typ == 0 then -- JMP
       CPU.PC = IR
     elseif typ == 0x2000 then -- JMPZ
-      if CPU.D_STACK[CPU.T] == 0 then
+      if TD() == 0 then
         CPU.PC = IR
       end
       CPU.T = CPU.T + 1 % CONST.STACK_SIZE

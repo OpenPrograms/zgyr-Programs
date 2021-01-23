@@ -23,26 +23,36 @@
 0000 1101 0000 0000 N<<T
 0000 1110 0000 0000 DSP
 0000 1111 0000 0000 Nu<T
+0000 0000 0000 0000 JMP
+0010 0000 0000 0000 JMPZ
+0100 0000 0000 0000 CALL
+0110 0000 0000 0000 ALU
+1000 0000 0000 0000 LIT
 --]]
 
-local string = string
+local string, tonumber = string, tonumber
 local args = {...}
 if #args ~= 1 then
-  print('Usage: assembler <program>')
+  print('Usage: assembler <file.j1>')
   return
 else
   filename = args[1]
 end
 
 local opcodes = {
-  ['d-1'] = 1,
-  ['d+1'] = 2,
-  ['r-1'] = 4,
-  ['r+1'] = 8,
-  ['N->[T]'] = 16,
-  ['T->R'] = 32,
-  ['T->N'] = 64,
-  ['R->PC'] = 128
+  ['d-1']    = 0x0001,
+  ['d+1']    = 0x0002,
+  ['r-1']    = 0x0004,
+  ['r+1']    = 0x0008,
+  ['N->[T]'] = 0x0010,
+  ['T->R']   = 0x0020,
+  ['T->N']   = 0x0040,
+  ['R->PC']  = 0x0080,
+  ['JMP']    = 0x0000,
+  ['JMPZ']   = 0x2000,
+  ['CALL']   = 0x4000,
+  ['ALU']    = 0x6000,
+  ['LIT']    = 0x8000,
 }
 
 local alu = {
@@ -65,13 +75,17 @@ f:close()
 for line in data:gmatch('[^\n]+') do
   local result = 0
   for code in line:gmatch('[^%s]+') do
-    if opcodes[code] then
-      result = result | opcodes[code]
+    if opcodes[code:upper()] then
+      result = result | opcodes[code:upper()]
+    elseif tonumber(code) then
+      result = result | tonumber(code)
+    else
+      print('UNKNOWN WORD: ' .. code)
     end
   end
-  program = program .. string.char(result & 0xff00) .. string.char(result & 0x00ff)
+  program = program .. string.char(result & 0xFF00) .. string.char(result & 0x00FF)
 end
 
-local f = io.open(filename .. '.j1', 'w')
+f = io.open(filename .. '.ac', 'w')
 f:write(program)
 f:close()

@@ -40,10 +40,10 @@ else
 end
 
 local opcodes = {
-  ['d-1']    = 0x0001,
-  ['d+1']    = 0x0002,
-  ['r-1']    = 0x0004,
-  ['r+1']    = 0x0008,
+  ['d--']    = 0x0001,
+  ['d++']    = 0x0002,
+  ['r--']    = 0x0004,
+  ['r++']    = 0x0008,
   ['N->[T]'] = 0x0010,
   ['T->R']   = 0x0020,
   ['T->N']   = 0x0040,
@@ -79,6 +79,8 @@ for line in data:gmatch('[^\n]+') do
       result = result | opcodes[code:upper()]
     elseif tonumber(code) then
       result = result | tonumber(code)
+    elseif code == '//' then
+      break
     else
       print('UNKNOWN WORD: ' .. code)
     end

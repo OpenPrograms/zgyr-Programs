@@ -17,11 +17,25 @@ local function uint16(n)
   return n & 0xffff
 end
 
+local function hash(str)
+  local x, b = 0
+  for i = 1, #str do
+    b = str:sub(i, i):byte() & 63
+    if i % 2 == 0 then
+      x = x ~ b << 2
+    else
+      x = x ~ b << 7
+    end
+  end
+  return (#str & 15) | x | ((str:sub(-1, -1):byte() & 1) << 14)
+end
+
 local CONST = {
   STACK_SIZE = 32,
-  MEM_SIZE = 0x7FFFF,
-  true = 1,
-  false = 0,
+  MEM_SIZE = 0x7FFF,
+  [true] = 1,
+  [false] = 0,
+  INT_ADDRESS = 0x3000,
 }
 
 local CPU = {
@@ -58,6 +72,26 @@ local OP = {
   function() return uint16(ND() << TD()) end,       -- N lshift T
   function() return CPU.T end,                      -- depth
   function() return CONST[TD() > uint16(ND())] end, -- uN < T
+  function()                                        -- INT
+    local e = {computer.pullSignal(0.05)}
+    if e then
+      MEMORY[CONST.INT_ADDRESS] = hash(e[1]) | 0x8000
+      local pos = CONST.INT_ADDRESS + 1
+      MEMORY[pos] = #e
+      for i = 2, #e do
+        if type(e[i]) == 'string' then
+          for j = 1, #e[i] do
+            pos = pos + 1
+            MEMORY[pos] = e[i]:sub(j, j):byte() | 0x8000
+          end
+        else
+          pos = pos + 1
+          MEMORY[pos] = e[i] | 0x8000
+        end
+        pos = CONST.INT_ADDRESS + i * 0x80
+      end
+    end
+  end,
 }
 
 local function ALU(IR)

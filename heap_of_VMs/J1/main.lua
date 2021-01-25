@@ -7,7 +7,7 @@ fedc ba98 7654 3210
 011T TTTT XXXX RRDD alu
 ]]
 
-min, max = math.min, math.max
+min, max, insert = math.min, math.max, table.insert
 
 local function int16(n)
   return n - (n >> 1) & 0xffff
@@ -52,7 +52,12 @@ local function TD() -- top of d_stack
 end
 
 local function ND() -- next value on d_stack
-  return CPU.D_STACK[CPU.T - 1 % CONST.STACK_SIZE]
+  return CPU.D_STACK[max(CPU.T - 1, 0)]
+end
+
+local function push(item)
+  CPU.D_STACK[CPU.T] = item
+  CPU.T = min(CPU.T + 1, CONST.STACK_SIZE)
 end
 
 local OP = {
@@ -76,9 +81,10 @@ local OP = {
     local e = {computer.pullSignal(0.05)}
     if e then
       MEMORY[CONST.INT_ADDRESS] = hash(e[1]) | 0x8000
+      local stack = {1, #e}
       local pos = CONST.INT_ADDRESS + 1
-      MEMORY[pos] = #e
       for i = 2, #e do
+        insert(stack, pos + 1)
         if type(e[i]) == 'string' then
           for j = 1, #e[i] do
             pos = pos + 1
@@ -88,23 +94,27 @@ local OP = {
           pos = pos + 1
           MEMORY[pos] = e[i] | 0x8000
         end
-        pos = CONST.INT_ADDRESS + i * 0x80
       end
+      for i = #stack, 1 do
+        push(stack[i])
+      end
+    else
+      push(0)
     end
   end,
 }
 
 local function ALU(IR)
   if IR & 0x3 then -- DS +-
-    CPU.D_STACK[CPU.T] = min(TD() + 1, CONST.STACK_SIZE)
+    CPU.T = min(CPU.T + 1, CONST.STACK_SIZE)
   elseif RS == 2 then
-    CPU.D_STACK[CPU.T] = max(TD() - 1, 0)
+    CPU.T = max(CPU.T - 1, 0)
   end
   local RS = (IR & 0xC) >> 2
   if RS == 1 then -- RS +-
-    CPU.R_STACK[CPU.R] = min(CPU.R_STACK[CPU.R] + 1, CONST.STACK_SIZE)
+    CPU.R = min(CPU.R + 1, CONST.STACK_SIZE)
   elseif RS == 2 then
-    CPU.R_STACK[CPU.R] = max(CPU.R_STACK[CPU.R] - 1, 0)
+    CPU.R = max(CPU.R - 1, 0)
   end
   local result = 0
   if OP[IR & 0x1F00 >> 8] then -- OP

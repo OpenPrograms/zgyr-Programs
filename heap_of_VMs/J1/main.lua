@@ -19,7 +19,7 @@ end
 
 local CONST = {
   STACK_SIZE = 32,
-  MEM_SIZE = 0x8000,
+  MEM_SIZE = 0x7FFFF,
   true = 1,
   false = 0,
 }
@@ -32,15 +32,6 @@ local CPU = {
   T = 0, -- d_stack pointer
   R = 0, -- r_stack pointer
 }
-
-local function init()
-  for i = 0, CONST.STACK_SIZE do
-    D_STACK, R_STACK = 0, 0
-  end
-  for i = 0, CONST.MEM_SIZE do
-    CPU.MEMORY = 0
-  end
-end
 
 local function TD() -- top of d_stack
   return CPU.D_STACK[CPU.T]
@@ -121,5 +112,24 @@ local function decoder(IR)
     elseif typ == 0x6000 then -- ALU
       ALU(IR)
     end
+  end
+end
+
+local function boot(image)
+  -- init
+  for i = 0, CONST.STACK_SIZE do
+    D_STACK, R_STACK = 0, 0
+  end
+  for i = 0, CONST.MEM_SIZE do
+    CPU.MEMORY = 0
+  end
+  -- load
+  for i = 1, #image, 2 do
+    CPU.MEMORY[i-1] = (image:sub(i, i):byte() << 8) + image:sub(i+1, i+1)
+  end
+  -- main loop
+  while CPU.PC < CONST.MEM_SIZE do
+    decoder(CPU.MEMORY[CPU.PC])
+    CPU.PC = CPU.PC + 1
   end
 end

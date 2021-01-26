@@ -7,7 +7,7 @@ fedc ba98 7654 3210
 011T TTTT XXXX RRDD alu
 ]]
 
-min, max, insert = math.min, math.max, table.insert
+min, max, insert, unpack = math.min, math.max, table.insert, table.unpack
 
 local function int16(n)
   return n - (n >> 1) & 0xffff
@@ -56,8 +56,25 @@ local function ND() -- next value on d_stack
 end
 
 local function push(item)
-  CPU.D_STACK[CPU.T] = item
   CPU.T = min(CPU.T + 1, CONST.STACK_SIZE)
+  CPU.D_STACK[CPU.T] = item
+end
+
+local function pop()
+  CPU.T = max(CPU.T - 1, 0)
+  return CPU.D_STACK[CPU.T + 1]
+end
+
+local links = {devices = {}, methods = {}}
+
+local function update_links()
+  for address in pairs(component.list()) do
+    if not links.devices[address] then
+      local a = tonumber(address:sub(1, 4), 16)
+      links.devices[address] = a
+      links.devices[a] = address
+    end
+  end
 end
 
 local OP = {
@@ -95,11 +112,32 @@ local OP = {
           MEMORY[pos] = e[i] | 0x8000
         end
       end
-      for i = #stack, 1 do
+      for i = #stack, 1, -1 do
         push(stack[i])
       end
     else
       push(0)
+    end
+  end,
+  function()                                        -- INV
+    local address = pop()
+    local m_hash = pop()
+    local v_len = pop()
+    local values = {}
+    for i = 1, v_len do
+      values[i] = pop()
+    end
+    if links.devices[address] then
+      address = links.devices[address]
+      if not links.methods[m_hash] then
+        for m in pairs(component.proxy(address)) do
+          local c_h = hash(m)
+          links.methods[c_h] = m
+        end
+      end
+      if links.methods[m_hash] then
+        component.invoke(address, links.methods[m_hash], unpack(values))
+      end
     end
   end,
 }

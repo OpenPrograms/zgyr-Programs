@@ -36,6 +36,7 @@ local CONST = {
   [true] = 1,
   [false] = 0,
   INT_ADDRESS = 0x3000,
+  DEVICE_LIST = 0x4000,
 }
 
 local CPU = {
@@ -140,6 +141,17 @@ local OP = {
       end
     end
   end,
+  function()                                        -- UP
+    update_links()
+    local counter = 0
+    for address in pairs(links.devices) do
+      if type(address) == 'number' then
+        CPU.MEMORY[CONST.DEVICE_LIST + 1 + counter] = address
+        counter = counter + 1
+      end
+    end
+    CONST.DEVICE_LIST = counter
+  end
 }
 
 local function ALU(IR)

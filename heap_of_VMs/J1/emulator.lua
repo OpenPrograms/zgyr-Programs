@@ -227,3 +227,16 @@ local function boot(image)
     CPU.PC = CPU.PC + 1
   end
 end
+
+local args = {...}
+
+local function main()
+  if #args ~= 1 then
+    print('Usage: emulator <file.j1>')
+    return
+  end
+  local f = io.open(filename)
+  local data = f:read('*a')
+  f:close()
+  boot(data)
+end

@@ -1,0 +1,36 @@
+transposers = {
+  [1] = 'uuid1',
+  [2] = 'uuid2',
+  ...
+}
+
+items = {
+  [1] = 'modname:itemname:meta', ['modname:itemname:meta'] = 1,
+  [2] = 'modname:itemname:meta', ['modname:itemname:meta'] = 2,
+  ...
+}
+
+chests = {
+  [1] = {
+    [0] = {},
+    transposers[n] = side_n,
+    ...
+  },
+  ...
+}
+
+db = {
+  [chest] = {
+    [items_n] = {
+      [slot_n] = amount,
+      ...
+    },
+    ...
+  },
+  ...
+}
+
+counters = {
+  [items_n] = {total, chest_1, chest_2, ...},
+  ...
+}

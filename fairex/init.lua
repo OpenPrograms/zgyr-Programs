@@ -47,5 +47,31 @@ local function addIcon(surface, container, type, x, y, name, meta, size)
   end
 end
 
-local function addText()
+local function addText(surface, container, type, x, y, text, text_color, center)
+  x = x or 0
+  y = y or 0
+  text = text or ''
+  text_color = text_color or 0
+  local a
+  if center then
+    a = surface.addText(x + center / 2 + 0.5, y - 4, text, text_color)
+    a.setAlignment('MIDDLE', 'TOP')
+  else
+    a = surface.addText(x, y - 4, text, text_color)
+    a.setScreenAnchor('MIDDLE', 'TOP')
+  end
+  if type then
+    a.setUserdata(type)
+  end
+  insert(containers[container], a.getId())
+end
+
+local function toggle(surface, id, state)
+  for i = 1, #containers[id] do
+    local element = surface.getById(containers[id][i])
+    element.setVisible(state)
+    if element.getUserdata() then
+      element.setClickable(state)
+    end
+  end
 end

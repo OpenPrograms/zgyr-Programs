@@ -32,7 +32,19 @@ local function addBox(surface, container, clickable, x, y, w, h, box_color, text
   end
 end
 
-local function addIcon()
+local function addIcon(surface, container, type, x, y, name, meta, size)
+  x = x or 0
+  y = y or 0
+  name = name or 'minecraft:stone'
+  meta = meta or 0
+  size = size or 1
+  local a = surface.addIcon(x, y - size * 8, name, meta)
+  a.setScale(size)
+  a.setAlignment('MIDDLE', 'TOP')
+  insert(containers[container], a.getId())
+  if type then
+    a.setUserdata(type)
+  end
 end
 
 local function addText()

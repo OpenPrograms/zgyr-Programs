@@ -4,10 +4,54 @@ local computer = require('computer')
 local event = require('event')
 --
 local config = require('config')
+local labels = require('labels')
 local insert, tonumber, min, max = table.insert, tonumber, math.min, math.max
 
 local ob = component.openperipheral_bridge
 local containers = {[0] = {}, {}, {}, {}}
+local users = {['Dummy'] = 123456}
+local states = {}
+local links = {
+  "minecraft:stone:0",
+  "minecraft:coal_block:0",
+  "minecraft:iron_block:0",
+  "minecraft:gold_block:0",
+  "minecraft:redstone_block:0",
+  "minecraft:lapis_block:0",
+  "minecraft:diamond_block:0",
+  "minecraft:emerald_block:0",
+  "minecraft:sand:0",
+  "minecraft:sand:1",
+  "minecraft:gravel:0",
+  "minecraft:gold_ore:0",
+  "minecraft:iron_ore:0",
+  "minecraft:coal_ore:0",
+  "minecraft:log:0",
+  "minecraft:log:1",
+  "minecraft:log:2",
+  "minecraft:log:3",
+}
+
+local items = {
+  ["minecraft:stone:0"] = {1, 0, 0},
+  ["minecraft:coal_block:0"] = {9, 0, 0},
+  ["minecraft:iron_block:0"] = {18, 0, 0},
+  ["minecraft:gold_block:0"] = {180, 0, 0},
+  ["minecraft:redstone_block:0"] = {15, 0, 0},
+  ["minecraft:lapis_block:0"] = {61, 0, 0},
+  ["minecraft:diamond_block:0"] = {504, 0, 0},
+  ["minecraft:emerald_block:0"] = {4068, 0, 0},
+  ["minecraft:sand:0"] ={4068, 0, 0},
+  ["minecraft:sand:1"] ={4068, 0, 0},
+  ["minecraft:gravel:0"] ={4068, 0, 0},
+  ["minecraft:gold_ore:0"] ={4068, 0, 0},
+  ["minecraft:iron_ore:0"] ={4068, 0, 0},
+  ["minecraft:coal_ore:0"] ={4068, 0, 0},
+  ["minecraft:log:0"] ={4068, 0, 0},
+  ["minecraft:log:1"] ={4068, 0, 0},
+  ["minecraft:log:2"] ={4068, 0, 0},
+  ["minecraft:log:3"] ={4068, 0, 0},
+}
 
 local function addBox(surface, container, clickable, x, y, w, h, box_color, text, text_color)
   x = x or 0
@@ -229,3 +273,123 @@ local function init(surface, user)
   addDeal(surface, user)
   ob.sync()
 end
+
+local function split(mod_item_meta)
+  for i = #mod_item_meta, 1, -1 do
+    if mod_item_meta:sub(i, i) == ':' then
+      return mod_item_meta:sub(1, i - 1), tonumber(mod_item_meta:sub(i + 1, -1))
+    end
+  end
+end
+
+local function update_list(surface, name)
+  local p = 0
+  for i = 1, config.list_l do
+    local a = surface.getById(containers[2][i+1+p])
+    local pos = i + states[name].pos
+    local item = links[pos]
+    if not item then
+      break
+    end
+    local n, m = split(item)
+    a.setItemId(n)
+    a.setMeta(m)
+    if labels[item] then
+      item = labels[item]
+    end
+    surface.getById(containers[2][i+2+p]).setText(item)
+    surface.getById(containers[2][i+3+p]).setText(items[links[pos]][2])
+    surface.getById(containers[2][i+4+p]).setText(items[links[pos]][3])
+    p = p + 4
+  end
+end
+
+local actions = {
+  head = function(surface, state)
+    if state == 0 then
+      toggle(surface, 1, true)
+      toggle(surface, 2, true)
+      return 11
+    elseif state == 1 or state == 11 then
+      toggle(surface, 1, false)
+      toggle(surface, 2, false)
+      return 0
+    end
+    return state
+  end,
+  sell = function(surface, state, name)
+    if state == 1 then
+      update_list(surface, name)
+      ob.sync()
+    end
+    return state
+  end,
+  buy = function(surface, state, name)
+    if state == 11 then
+      update_list(surface, name)
+      ob.sync()
+    end
+    return state
+  end,
+  list = function(surface, state)
+    if state == 1 or state == 11 then
+      toggle(surface, 3, true)
+      return 2
+    end
+    return state
+  end,
+  cancel = function(surface, state)
+    if state == 2 then
+      toggle(surface, 3, false)
+      return 1
+    end
+    return state
+  end
+}
+
+local function main()
+  ob.clear()
+  ob.sync()
+  local surface, element, state
+  while true do
+    local e = {event.pull()}
+    local name = e[3]
+    if type(name) == 'string' and not states[name] then
+      if not users[name] then
+        users[name] = 0
+      end
+      states[name] = {pos = 0, state = 0}
+      surface = ob.getSurfaceByName(name), name
+      init(surface, name)
+      update_list(surface, name)
+    end
+    if e[1] == 'glasses_component_mouse_up' then
+      surface = ob.getSurfaceByName(name)
+      element = surface.getById(e[5])
+      local data = element.getUserdata()
+      if element and data then
+        
+        state = states[name].state
+        local pos = states[name].pos
+        if actions[data.name] then
+          state = actions[data.name](surface, state, name)
+        end
+        if states[name].state ~= state then
+          states[name].state = state
+          ob.sync()
+        end
+      end
+    elseif e[1] == 'glasses_component_mouse_wheel' and
+           (states[name].state == 1 or states[name].state == 11) then
+      if e[9] > 0 then
+        states[name].pos = max(states[name].pos - 1, 0)
+      else
+        states[name].pos = min(states[name].pos + 1, config.list_l - 2)
+      end
+      update_list(surface, name)
+      ob.sync()
+    end
+  end
+end
+
+main()

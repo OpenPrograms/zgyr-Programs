@@ -8,8 +8,8 @@ local labels = require('labels')
 local insert, tonumber, min, max = table.insert, tonumber, math.min, math.max
 
 local ob = component.openperipheral_bridge
-local containers = {[0] = {}, {}, {}, {}}
-local users = {['Dummy'] = 123456}
+local containers = {[0] = {}, {}, {}, {}} -- ['modname:itemname:meta'] = {C_Cost, I, O}
+local users = {['Dummy'] = 123456} -- ['username'] = balance
 local states = {}
 local links = {
   "minecraft:stone:0",
@@ -53,6 +53,63 @@ local items = {
   ["minecraft:log:3"] ={4068, 0, 0},
 }
 
+-- logic
+local function round(n)
+  return floor(n + 0.5)
+end
+
+local function read_csv(filename) -- dict
+  local file, reason = io.open(filename, 'r')
+  if not file then
+    return nil
+  end
+  local dict = {}
+  for line in file:lines() do
+    local name = ''
+    for i = 1, #line do
+      if line:sub(i, i) == ',' then
+        name = line:sub(1, i - 1)
+        break
+      end
+    end
+    dict[name] = {}
+    local pos = 1
+    line = line:sub(#name + 1, -1)
+    for i = 1, #line do
+      if line:sub(i, i) == ',' or i == #line then
+        insert(dict[name], tonumber(line:sub(pos, i-1)))
+        pos = i + 1
+      end
+    end
+  end
+  file:close()
+  return dict
+end
+
+local function to_csv(dict, filename) -- nil
+  local file = io.open(filename, 'w')
+  for k, v in pairs(dict) do
+    if type(v) == 'number' then
+      file:write(k .. ',' .. v .. '\n')
+    else
+      file:write(k .. ',' .. concat(v, ',') .. '\n')
+    end
+  end
+  file:close()
+end
+
+local function to_log(path, ...) -- nil
+  local file = io.open(path, 'a')
+  file:write(concat({...}, ',') .. '\n')
+  file:close()
+end
+
+local function get_time() -- number: unix timestamp
+  tmp.close(tmp.open('time', 'w'))
+  return floor(tmp.lastModified('time') / 1000)
+end
+
+-- interface
 local function addBox(surface, container, clickable, x, y, w, h, box_color, text, text_color)
   x = x or 0
   y = y or 0

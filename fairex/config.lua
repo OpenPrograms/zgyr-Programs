@@ -1,4 +1,6 @@
 local config = {
+  max = 2000000,
+  itax = 0.95,
   text = {
     name = 'Item name',
     amount = 'Amount',

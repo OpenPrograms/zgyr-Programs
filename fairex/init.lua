@@ -8,7 +8,7 @@ local labels = require('labels')
 local insert, tonumber, min, max = table.insert, tonumber, math.min, math.max
 
 local ob = component.openperipheral_bridge
-local containers = {[0] = {}, {}, {}, {}} -- ['modname:itemname:meta'] = {C_Cost, I, O}
+local containers = {[0] = {}, {}, {}, {}}
 local users = {['Dummy'] = 123456} -- ['username'] = balance
 local states = {}
 local links = {
@@ -32,7 +32,7 @@ local links = {
   "minecraft:log:3",
 }
 
-local items = {
+local items = { -- ['modname:itemname:meta'] = {C_Cost, I, O}
   ["minecraft:stone:0"] = {1, 0, 0},
   ["minecraft:coal_block:0"] = {9, 0, 0},
   ["minecraft:iron_block:0"] = {18, 0, 0},
@@ -107,6 +107,54 @@ end
 local function get_time() -- number: unix timestamp
   tmp.close(tmp.open('time', 'w'))
   return floor(tmp.lastModified('time') / 1000)
+end
+
+local function cost_update(item) -- nil
+  local r_cost = round(items[item][3] / (items[item][2] - items[item][3] + 1) / items[item][2] * config.max)
+  local c_cost = items[item][1] + 1
+  if c_cost <= r_cost then
+    c_cost = ((r_cost - c_cost) / r_cost) * c_cost + c_cost
+  elseif c_cost > r_cost then
+    c_cost = (c_cost - r_cost) / (c_cost / r_cost) + r_cost
+  end
+  if c_cost < 0 then
+    c_cost = 0
+  end
+  items[item][1] = round(c_cost)
+end
+
+local function pull(user, item, amount) -- nil
+  if not users[user] then
+    users[user] = 0
+  end
+  if items[item] then
+    local paid = amount * items[item][1]
+    local name, meta = split(item)
+    if users[user] >= paid then
+      users[user] = users[user] - paid
+      items[item][3] = items[item][3] + amount
+      wi.insertItem(user, name, meta, amount)
+      cost_update(item)
+      db_update()
+      to_log('log.csv', get_time(), user, users[user], item, amount, 0)
+    end
+  end
+end
+
+local function push(user, item, amount) -- nil
+  if not users[user] then
+    users[user] = 0
+  end
+  if items[item] then
+    local name, meta = split(item)
+    if wi.clearItem(user, name, meta, amount) then
+      users[user] = floor((users[user] + (amount * items[item][1])) * config.itax)
+      items[item][2] = items[item][2] + amount
+      cost_update(item)
+      db_update()
+      to_log('log.csv', get_time(), user, users[user], item, amount, 1)
+    end
+  end
 end
 
 -- interface

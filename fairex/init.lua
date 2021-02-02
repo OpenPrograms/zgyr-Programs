@@ -58,6 +58,14 @@ local function round(n)
   return floor(n + 0.5)
 end
 
+local function split(mod_item_meta)
+  for i = #mod_item_meta, 1, -1 do
+    if mod_item_meta:sub(i, i) == ':' then
+      return mod_item_meta:sub(1, i - 1), tonumber(mod_item_meta:sub(i + 1, -1))
+    end
+  end
+end
+
 local function read_csv(filename) -- dict
   local file, reason = io.open(filename, 'r')
   if not file then
@@ -377,14 +385,6 @@ local function init(surface, user)
   addMain(surface, user)
   addDeal(surface, user)
   ob.sync()
-end
-
-local function split(mod_item_meta)
-  for i = #mod_item_meta, 1, -1 do
-    if mod_item_meta:sub(i, i) == ':' then
-      return mod_item_meta:sub(1, i - 1), tonumber(mod_item_meta:sub(i + 1, -1))
-    end
-  end
 end
 
 local function update_list(surface, name)

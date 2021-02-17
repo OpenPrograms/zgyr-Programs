@@ -97,10 +97,86 @@ function readLine()
   end
   Y = min(Y + 1, H)
   setX(1)
+  line = line .. '\n'
 end
 
-clearTTY()
-while true do
-  readLine()
-  isReading = true
+-- vm
+CONST = {
+  [true] = 1,
+  [false] = 0
+}
+
+
+function err(text)
+  write('Error: ' .. text .. '\n\r')
+end
+
+function push(v)
+  STACK.n = STACK.n + 1
+  STACK[STACK.n] = v
+end
+
+function pop()
+  STACK.n = STACK.n - 1
+  if STACK.n > 1 then
+    return STACK[STACK.n+1]
+  else
+    err('Stack underflow')
+  end
+end
+
+STACK = {n=1}
+WORDS = {
+  [':'] = 'def=true',
+  [';'] = 'def,name=nil,nil',
+  ['DUP'] = 'a=pop()push(a)push(a)',
+  ['DROP'] = 'pop()',
+  ['EMIT'] = 'write(char(pop()))',
+  ['+'] = 'push(pop()+pop())',
+  ['-'] = 'a,b=pop(),pop()push(a-b)',
+  ['*'] = 'push(pop()*pop())',
+  ['/'] = 'a,b=pop(),pop()push(a/b)',
+  ['='] = 'push(CONST[pop()==pop()])',  
+}
+
+function interpret(word)
+  word = tonumber(word) or upper(word)
+  if type(word) == 'number' then
+    push(word)
+  else
+    if def and not name then
+      name = word
+      WORDS[name] = {}
+    elseif def and name then
+      if word ~= ';' then
+        insert(WORDS[name], word)
+      end
+    else
+      if type(WORDS[word]) == 'table' then
+        for i = 1, #WORDS[word] do
+          interpret(WORDS[word][i])
+        end
+      else
+        pcall(load(WORDS[word]))
+      end
+    end
+  end
+end
+
+function main()
+  clearTTY()
+  while true do
+    readLine()
+    local word = ''
+    for i = 1, len(line) do
+      local c = sub(line, i, i)
+      if c == ' ' or c == '\n' then
+        interpret(word)
+        word = ''
+      else
+        word = word .. c
+      end
+    end
+    isReading = true
+  end
 end

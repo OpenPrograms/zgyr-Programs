@@ -11,6 +11,7 @@ local CODES = {
   pong = 'moonlink_pong',
   send = 'moonlink_message'
 }
+local messages = {}
 local tmp = {}
 local moonlink_routes = {}
 
@@ -43,7 +44,18 @@ local function listener(...)
       event.push(unpack(e, 6))
     elseif moonlink_routes[e[7]] and moonlink_routes[e[7]] ~= e[2] then
       modem.send(moonlink_routes[e[7]][2], PORT, unpack(e, 6))
+    else
+      if not messages[e[7]] then
+        messages[e[7]] = {}
+      end
+      insert(messages[e[7]], {unpack(e, 6)})
     end
+  end
+  for address in pairs(messages) do
+    if moonlink_routes[address] then
+      modem.send(moonlink_routes[address][2], PORT, unpack(messages[address]))
+    end
+    moonlink_routes[address] = {}
   end
 end
 
